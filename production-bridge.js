@@ -18,7 +18,6 @@ function notify(text,kind='warn'){
 }
 if(!configured || !window.supabase?.createClient){
   // Public, honest launch mode until backend is configured: no fabricated order IDs.
-  notify('Sayt açıqdır. Hazırda sifariş və qiymət sorğuları WhatsApp vasitəsilə qəbul edilir.');
   const waNumber=()=>String(db?.config?.whatsapp||'994993703892').replace(/\D/g,'');
   const waMessage=message=>'https://wa.me/'+waNumber()+'?text='+encodeURIComponent(message);
   const waSend=(message)=>{
@@ -45,10 +44,6 @@ if(!configured || !window.supabase?.createClient){
   window.openTracking=()=>openModal('Sifariş izləmə',`<div class="notice">Sifarişlərin kodla izlənməsi Supabase aktivləşdirildikdən sonra işləyəcək. Hazırda sifariş vəziyyətini WhatsApp ilə öyrənə bilərsiniz.</div><a class="btn" target="_blank" rel="noopener" href="${waMessage('Salam, sifarişimin vəziyyətini öyrənmək istəyirəm.')}">WhatsApp-da soruş ↗</a>`);
   window.checkTrack=()=>notify('Sifariş izləmə bazası hələ qoşulmayıb.','error');
   window.openAdmin=()=>openModal('Baş Admin aktivləşdirməsi',`<div class="notice">Təhlükəsizlik üçün demo şifrəsi internetdə söndürülüb. Baş Admin kabinetini işə salmaq üçün Supabase SQL sxemini tətbiq edib config.js bağlantısını əlavə edin.</div><p>Quraşdırma addımları paketdəki <b>QURASDIRMA_AZ.md</b> faylındadır.</p>`);
-  const setupLabel=document.createElement('aside');setupLabel.id='na-launch-mode';
-  setupLabel.setAttribute('aria-label','Sifariş qəbulu vəziyyəti');
-  setupLabel.style.cssText='position:fixed;bottom:12px;left:12px;z-index:81;background:#fff;color:#126844;border:1px solid #b1d7bd;padding:9px 13px;border-radius:14px;font:600 12px system-ui;box-shadow:0 8px 26px #11332212;max-width:215px';
-  setupLabel.innerHTML='● Sifarişlər WhatsApp ilə qəbul edilir';document.body.appendChild(setupLabel);
   setTimeout(()=>{banner.style.display='none'},8500);
   return;
 }
