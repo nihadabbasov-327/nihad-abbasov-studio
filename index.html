@@ -216,6 +216,293 @@ function closeLightbox(){$('studioLightbox').classList.remove('show')}
 document.addEventListener('click',e=>{let img=e.target.closest('#portfolioCards img,#certificateCards img');if(!img)return;$('lightboxImage').src=img.src;$('lightboxCaption').textContent=img.alt||'Portfolio';$('studioLightbox').classList.add('show')});document.addEventListener('keydown',e=>{if(e.key==='Escape')closeLightbox()});
 
 </script><div class="lightbox-overlay" id="studioLightbox" onclick="if(event.target===this)closeLightbox()"><button aria-label="Bağla" onclick="closeLightbox()">×</button><div><img id="lightboxImage" alt="Layihə şəkli"><p id="lightboxCaption"></p></div></div><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="./config.js"></script>
-<script src="./production-bridge.js"></script>
+<style>
+#naSetupOverlay{display:none;position:fixed;inset:0;background:rgba(5,30,20,.80);backdrop-filter:blur(9px);z-index:200000;overflow-y:auto;padding:5vh 15px;color:#13251b}
+#naSetupOverlay.show{display:flex;align-items:flex-start;justify-content:center}
+#naSetupOverlay .na-setup-card{background:white;border:1px solid #d8e9dc;border-radius:24px;width:min(690px,100%);padding:clamp(20px,4vw,38px);box-shadow:0 30px 90px #001e113d;line-height:1.65}
+#naSetupOverlay h2{font-size:27px;letter-spacing:-.03em;color:#063d2a;margin:3px 0 8px}
+#naSetupOverlay .na-kicker{font-weight:800;letter-spacing:.18em;font-size:11px;color:#a17a37;text-transform:uppercase}
+#naSetupOverlay .na-info{font-size:14px;color:#466356;margin:10px 0 16px}
+#naSetupOverlay .na-setup-group{margin:13px 0}
+#naSetupOverlay .na-setup-group label{font-weight:700;display:block;margin-bottom:6px}
+#naSetupOverlay input{display:block;width:100%;padding:12px 13px;border:1px solid #cbded1;border-radius:11px;font-size:14px;color:#133326;background:#f8fcf9}
+#naSetupOverlay .na-setup-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px}
+#naSetupOverlay button{border:0;border-radius:11px;background:#086b45;color:white;font-weight:800;padding:12px 16px;cursor:pointer}
+#naSetupOverlay button.secondary{background:#eaf4ed;color:#155638}
+#naSetupOverlay button.outline{background:#fff;border:1px solid #cbded1;color:#315d46}
+#naSetupOverlay .na-alert{margin-top:15px;font-size:13px;padding:12px;border-radius:11px;background:#f3f8f4;color:#375d46}
+</style>
+<div id="naSetupOverlay" role="dialog" aria-modal="true" aria-labelledby="naSetupTitle">
+  <div class="na-setup-card">
+    <div style="display:flex;align-items:start;justify-content:space-between;gap:10px"><div><span class="na-kicker">Nihad Abbasov Studio</span><h2 id="naSetupTitle">Baş Admin bağlantısı</h2></div><button class="secondary" style="padding:5px 12px" onclick="naCloseSetup()" aria-label="Bağla">✕</button></div>
+    <p class="na-info">Baş Admin hesabı Supabase Auth ilə qorunur. Birdəfəlik layihə bağlantısını əlavə edib hazır HTML faylını yenidən GitHub-a yükləmək lazımdır. Demo şifrə ilə ictimai giriş açılmır.</p>
+    <div class="na-setup-group"><label for="naSetupUrl">Supabase Project URL</label><input id="naSetupUrl" autocomplete="off" placeholder="https://xxxx.supabase.co"></div>
+    <div class="na-setup-group"><label for="naSetupKey">Supabase publishable / anon key</label><input id="naSetupKey" autocomplete="off" placeholder="sb_publishable_... və ya eyJ..."></div>
+    <div class="na-setup-actions">
+      <button onclick="naDownloadSql()" class="secondary">SQL sxemini yüklə</button>
+      <button onclick="naDownloadConfigured()">Qoşulmuş index.html yüklə</button>
+      <button onclick="naApplyLocal()" class="outline">Bu brauzerdə sına</button>
+    </div>
+    <p class="na-alert" id="naSetupNotice">Əvvəl SQL faylını Supabase → SQL Editor-də icra edin; sonra Authentication-da hesab yaradıb onu <b>studio_admins</b> cədvəlinə icazəli admin kimi əlavə edin. İctimai sayt yalnız konfiqurasiya olunmuş HTML yenidən yayımlandıqdan sonra serverlə işləyəcək. <b>service_role və gizli açar yazmayın.</b></p>
+  </div>
+</div>
+<script>
+/* STUDIO_PUBLIC_CONFIG_BEGIN */
+window.NA_SUPABASE_CONFIG={url:"PASTE_YOUR_SUPABASE_PROJECT_URL",publishableKey:"PASTE_YOUR_SUPABASE_PUBLISHABLE_OR_ANON_KEY"};
+/* STUDIO_PUBLIC_CONFIG_END */
+const NA_SQL_B64="LS0gTmloYWQgQWJiYXNvdiBTdHVkaW8g4oCUIFN1cGFiYXNlIHNjaGVtYSB2MQotLSBTdXBhYmFzZSBTUUwgRWRpdG9yLWTJmSB5YWxuxLF6IGJpciBkyZlmyZkgaWNyYSBlZGluLgpjcmVhdGUgZXh0ZW5zaW9uIGlmIG5vdCBleGlzdHMgcGdjcnlwdG87CgpjcmVhdGUgdGFibGUgaWYgbm90IGV4aXN0cyBwdWJsaWMuc3R1ZGlvX2FkbWlucyAoCiAgdXNlcl9pZCB1dWlkIHByaW1hcnkga2V5IHJlZmVyZW5jZXMgYXV0aC51c2VycyhpZCkgb24gZGVsZXRlIGNhc2NhZGUKKTsKY3JlYXRlIHRhYmxlIGlmIG5vdCBleGlzdHMgcHVibGljLnN0dWRpb19wdWJsaWMgKAogIGlkIGludGVnZXIgcHJpbWFyeSBrZXkgZGVmYXVsdCAxIGNoZWNrIChpZD0xKSwKICBkYXRhIGpzb25iIG5vdCBudWxsIGRlZmF1bHQgJ3t9Jzo6anNvbmIsCiAgdXBkYXRlZF9hdCB0aW1lc3RhbXB0eiBub3QgbnVsbCBkZWZhdWx0IG5vdygpCik7CmNyZWF0ZSB0YWJsZSBpZiBub3QgZXhpc3RzIHB1YmxpYy5zdHVkaW9fcHJpdmF0ZSAoCiAgaWQgaW50ZWdlciBwcmltYXJ5IGtleSBkZWZhdWx0IDEgY2hlY2sgKGlkPTEpLAogIGRhdGEganNvbmIgbm90IG51bGwgZGVmYXVsdCAne30nOjpqc29uYiwKICB1cGRhdGVkX2F0IHRpbWVzdGFtcHR6IG5vdCBudWxsIGRlZmF1bHQgbm93KCkKKTsKY3JlYXRlIHRhYmxlIGlmIG5vdCBleGlzdHMgcHVibGljLnN0dWRpb19vcmRlcnMgKAogIGlkIHRleHQgcHJpbWFyeSBrZXksCiAgZGF0YSBqc29uYiBub3QgbnVsbCwKICBjcmVhdGVkX2F0IHRpbWVzdGFtcHR6IG5vdCBudWxsIGRlZmF1bHQgbm93KCksCiAgdXBkYXRlZF9hdCB0aW1lc3RhbXB0eiBub3QgbnVsbCBkZWZhdWx0IG5vdygpCik7CmNyZWF0ZSB0YWJsZSBpZiBub3QgZXhpc3RzIHB1YmxpYy5zdHVkaW9faW52b2ljZXMgKAogIGlkIHRleHQgcHJpbWFyeSBrZXksCiAgZGF0YSBqc29uYiBub3QgbnVsbCwKICBjcmVhdGVkX2F0IHRpbWVzdGFtcHR6IG5vdCBudWxsIGRlZmF1bHQgbm93KCkKKTsKY3JlYXRlIHRhYmxlIGlmIG5vdCBleGlzdHMgcHVibGljLnN0dWRpb19sZWFkcyAoCiAgaWQgdGV4dCBwcmltYXJ5IGtleSwKICBkYXRhIGpzb25iIG5vdCBudWxsLAogIGNyZWF0ZWRfYXQgdGltZXN0YW1wdHogbm90IG51bGwgZGVmYXVsdCBub3coKQopOwoKY3JlYXRlIG9yIHJlcGxhY2UgZnVuY3Rpb24gcHVibGljLnN0dWRpb19pc19hZG1pbigpCnJldHVybnMgYm9vbGVhbiBsYW5ndWFnZSBzcWwgc3RhYmxlIHNlY3VyaXR5IGRlZmluZXIgc2V0IHNlYXJjaF9wYXRoPScnIGFzICQkCiAgc2VsZWN0IGV4aXN0cyhzZWxlY3QgMSBmcm9tIHB1YmxpYy5zdHVkaW9fYWRtaW5zIHdoZXJlIHVzZXJfaWQ9KHNlbGVjdCBhdXRoLnVpZCgpKSk7CiQkOwpyZXZva2UgYWxsIG9uIGZ1bmN0aW9uIHB1YmxpYy5zdHVkaW9faXNfYWRtaW4oKSBmcm9tIHB1YmxpYywgYW5vbjsKZ3JhbnQgZXhlY3V0ZSBvbiBmdW5jdGlvbiBwdWJsaWMuc3R1ZGlvX2lzX2FkbWluKCkgdG8gYXV0aGVudGljYXRlZDsKCmFsdGVyIHRhYmxlIHB1YmxpYy5zdHVkaW9fYWRtaW5zIGVuYWJsZSByb3cgbGV2ZWwgc2VjdXJpdHk7CmFsdGVyIHRhYmxlIHB1YmxpYy5zdHVkaW9fcHVibGljIGVuYWJsZSByb3cgbGV2ZWwgc2VjdXJpdHk7CmFsdGVyIHRhYmxlIHB1YmxpYy5zdHVkaW9fcHJpdmF0ZSBlbmFibGUgcm93IGxldmVsIHNlY3VyaXR5OwphbHRlciB0YWJsZSBwdWJsaWMuc3R1ZGlvX29yZGVycyBlbmFibGUgcm93IGxldmVsIHNlY3VyaXR5OwphbHRlciB0YWJsZSBwdWJsaWMuc3R1ZGlvX2ludm9pY2VzIGVuYWJsZSByb3cgbGV2ZWwgc2VjdXJpdHk7CmFsdGVyIHRhYmxlIHB1YmxpYy5zdHVkaW9fbGVhZHMgZW5hYmxlIHJvdyBsZXZlbCBzZWN1cml0eTsKCi0tIEV4cGxpY2l0IGdyYW50cyAoUkxTIHN0aWxsIGVuZm9yY2VzIHBlci1yb3cgcGVybWlzc2lvbnMpLgpyZXZva2UgYWxsIG9uIHB1YmxpYy5zdHVkaW9fYWRtaW5zLCBwdWJsaWMuc3R1ZGlvX3B1YmxpYywgcHVibGljLnN0dWRpb19wcml2YXRlLCBwdWJsaWMuc3R1ZGlvX29yZGVycywgcHVibGljLnN0dWRpb19pbnZvaWNlcywgcHVibGljLnN0dWRpb19sZWFkcyBmcm9tIGFub24sIGF1dGhlbnRpY2F0ZWQ7CmdyYW50IHNlbGVjdCBvbiBwdWJsaWMuc3R1ZGlvX3B1YmxpYyB0byBhbm9uLCBhdXRoZW50aWNhdGVkOwpncmFudCBpbnNlcnQsdXBkYXRlLGRlbGV0ZSBvbiBwdWJsaWMuc3R1ZGlvX3B1YmxpYyB0byBhdXRoZW50aWNhdGVkOwpncmFudCBzZWxlY3QsaW5zZXJ0LHVwZGF0ZSxkZWxldGUgb24gcHVibGljLnN0dWRpb19wcml2YXRlLCBwdWJsaWMuc3R1ZGlvX29yZGVycywgcHVibGljLnN0dWRpb19pbnZvaWNlcywgcHVibGljLnN0dWRpb19sZWFkcyB0byBhdXRoZW50aWNhdGVkOwoKY3JlYXRlIHBvbGljeSAiQW55b25lIGNhbiByZWFkIHB1Ymxpc2hlZCBzdHVkaW8gY29udGVudCIgb24gcHVibGljLnN0dWRpb19wdWJsaWMgZm9yIHNlbGVjdCB0byBhbm9uLCBhdXRoZW50aWNhdGVkIHVzaW5nICh0cnVlKTsKY3JlYXRlIHBvbGljeSAiQWRtaW4gY2FuIGFkZCBwdWJsaXNoZWQgY29udGVudCIgb24gcHVibGljLnN0dWRpb19wdWJsaWMgZm9yIGluc2VydCB0byBhdXRoZW50aWNhdGVkIHdpdGggY2hlY2sgKHB1YmxpYy5zdHVkaW9faXNfYWRtaW4oKSk7CmNyZWF0ZSBwb2xpY3kgIkFkbWluIGNhbiBlZGl0IHB1Ymxpc2hlZCBjb250ZW50IiBvbiBwdWJsaWMuc3R1ZGlvX3B1YmxpYyBmb3IgdXBkYXRlIHRvIGF1dGhlbnRpY2F0ZWQgdXNpbmcgKHB1YmxpYy5zdHVkaW9faXNfYWRtaW4oKSkgd2l0aCBjaGVjayAocHVibGljLnN0dWRpb19pc19hZG1pbigpKTsKY3JlYXRlIHBvbGljeSAiQWRtaW4gY2FuIHJlbW92ZSBwdWJsaXNoZWQgY29udGVudCIgb24gcHVibGljLnN0dWRpb19wdWJsaWMgZm9yIGRlbGV0ZSB0byBhdXRoZW50aWNhdGVkIHVzaW5nIChwdWJsaWMuc3R1ZGlvX2lzX2FkbWluKCkpOwpjcmVhdGUgcG9saWN5ICJBZG1pbiBjYW4gcmVhZCBwcml2YXRlIHN0YXRlIiBvbiBwdWJsaWMuc3R1ZGlvX3ByaXZhdGUgZm9yIHNlbGVjdCB0byBhdXRoZW50aWNhdGVkIHVzaW5nIChwdWJsaWMuc3R1ZGlvX2lzX2FkbWluKCkpOwpjcmVhdGUgcG9saWN5ICJBZG1pbiBjYW4gYWRkIHByaXZhdGUgc3RhdGUiIG9uIHB1YmxpYy5zdHVkaW9fcHJpdmF0ZSBmb3IgaW5zZXJ0IHRvIGF1dGhlbnRpY2F0ZWQgd2l0aCBjaGVjayAocHVibGljLnN0dWRpb19pc19hZG1pbigpKTsKY3JlYXRlIHBvbGljeSAiQWRtaW4gY2FuIHVwZGF0ZSBwcml2YXRlIHN0YXRlIiBvbiBwdWJsaWMuc3R1ZGlvX3ByaXZhdGUgZm9yIHVwZGF0ZSB0byBhdXRoZW50aWNhdGVkIHVzaW5nIChwdWJsaWMuc3R1ZGlvX2lzX2FkbWluKCkpIHdpdGggY2hlY2sgKHB1YmxpYy5zdHVkaW9faXNfYWRtaW4oKSk7CmNyZWF0ZSBwb2xpY3kgIkFkbWluIGNhbiBkZWxldGUgcHJpdmF0ZSBzdGF0ZSIgb24gcHVibGljLnN0dWRpb19wcml2YXRlIGZvciBkZWxldGUgdG8gYXV0aGVudGljYXRlZCB1c2luZyAocHVibGljLnN0dWRpb19pc19hZG1pbigpKTsKY3JlYXRlIHBvbGljeSAiQWRtaW4gY2FuIG1hbmFnZSBvcmRlcnMiIG9uIHB1YmxpYy5zdHVkaW9fb3JkZXJzIGZvciBhbGwgdG8gYXV0aGVudGljYXRlZCB1c2luZyAocHVibGljLnN0dWRpb19pc19hZG1pbigpKSB3aXRoIGNoZWNrIChwdWJsaWMuc3R1ZGlvX2lzX2FkbWluKCkpOwpjcmVhdGUgcG9saWN5ICJBZG1pbiBjYW4gbWFuYWdlIGludm9pY2VzIiBvbiBwdWJsaWMuc3R1ZGlvX2ludm9pY2VzIGZvciBhbGwgdG8gYXV0aGVudGljYXRlZCB1c2luZyAocHVibGljLnN0dWRpb19pc19hZG1pbigpKSB3aXRoIGNoZWNrIChwdWJsaWMuc3R1ZGlvX2lzX2FkbWluKCkpOwpjcmVhdGUgcG9saWN5ICJBZG1pbiBjYW4gbWFuYWdlIGxlYWRzIiBvbiBwdWJsaWMuc3R1ZGlvX2xlYWRzIGZvciBhbGwgdG8gYXV0aGVudGljYXRlZCB1c2luZyAocHVibGljLnN0dWRpb19pc19hZG1pbigpKSB3aXRoIGNoZWNrIChwdWJsaWMuc3R1ZGlvX2lzX2FkbWluKCkpOwoKLS0gTmV2ZXIgZXhwb3NlIHJhdyBvcmRlciByb3dzIHRvIHVuYXV0aGVudGljYXRlZCBzaXRlIHZpc2l0b3JzLgotLSBSUEMgbG9va3MgdXAgcHVibGljIGNhdGFsb2cgb24gdGhlIHNlcnZlciBhbmQgZGVyaXZlcyBwcmljZSBmcm9tIHB1Ymxpc2hlZCBzZXJ2aWNlLgpjcmVhdGUgb3IgcmVwbGFjZSBmdW5jdGlvbiBwdWJsaWMuc3R1ZGlvX3N1Ym1pdF9vcmRlcigKICBwX3NlcnZpY2VfaWQgdGV4dCwgcF9uYW1lIHRleHQsIHBfc3VybmFtZSB0ZXh0LCBwX3Bob25lIHRleHQsCiAgcF9icmllZiB0ZXh0IGRlZmF1bHQgJycsIHBfcmVmIHRleHQgZGVmYXVsdCAnJywgcF9kdWUgdGV4dCBkZWZhdWx0ICcnCikgcmV0dXJucyB0ZXh0Cmxhbmd1YWdlIHBscGdzcWwgc2VjdXJpdHkgZGVmaW5lciBzZXQgc2VhcmNoX3BhdGg9JycgYXMgJCQKZGVjbGFyZSB2X3NlcnZpY2UganNvbmI7IHZfY29kZSB0ZXh0OyB2X29yZGVyIGpzb25iOyB2X2NhdGFsb2cganNvbmI7CmJlZ2luCiAgaWYgbGVuZ3RoKHRyaW0oY29hbGVzY2UocF9uYW1lLCcnKSkpIG5vdCBiZXR3ZWVuIDIgYW5kIDEwMAogICAgb3IgbGVuZ3RoKHRyaW0oY29hbGVzY2UocF9waG9uZSwnJykpKSBub3QgYmV0d2VlbiA3IGFuZCAzMAogICAgb3IgbGVuZ3RoKGNvYWxlc2NlKHBfYnJpZWYsJycpKSA+IDUwMDAKICAgIG9yIGxlbmd0aChjb2FsZXNjZShwX3JlZiwnJykpID4gNTAwCiAgICBvciBsZW5ndGgoY29hbGVzY2UocF9kdWUsJycpKSA+IDEwMCB0aGVuCiAgICByYWlzZSBleGNlcHRpb24gJ1NpZmFyacWfIG3JmWx1bWF0bGFyxLEgZMO8emfDvG4gZGV5aWwnOwogIGVuZCBpZjsKICBzZWxlY3QgZGF0YSBpbnRvIHZfY2F0YWxvZyBmcm9tIHB1YmxpYy5zdHVkaW9fcHVibGljIHdoZXJlIGlkPTE7CiAgc2VsZWN0IHMudmFsdWUgaW50byB2X3NlcnZpY2UKICBmcm9tIGpzb25iX2FycmF5X2VsZW1lbnRzKGNvYWxlc2NlKHZfY2F0YWxvZy0+J3NlcnZpY2VzJywnW10nOjpqc29uYikpIHModmFsdWUpCiAgd2hlcmUgcy52YWx1ZS0+PidpZCc9cF9zZXJ2aWNlX2lkIGFuZCBzLnZhbHVlLT4+J3B1Ymxpc2hlZCc9J3RydWUnIGxpbWl0IDE7CiAgaWYgdl9zZXJ2aWNlIGlzIG51bGwgdGhlbiByYWlzZSBleGNlcHRpb24gJ1hpZG3JmXQgdGFwxLFsbWFkxLEnOyBlbmQgaWY7CiAgbG9vcAogICAgdl9jb2RlOj0nTkEtJ3x8dXBwZXIoc3Vic3RyKHJlcGxhY2UoZ2VuX3JhbmRvbV91dWlkKCk6OnRleHQsJy0nLCcnKSwxLDEwKSk7CiAgICBleGl0IHdoZW4gbm90IGV4aXN0cyhzZWxlY3QgMSBmcm9tIHB1YmxpYy5zdHVkaW9fb3JkZXJzIHdoZXJlIGlkPXZfY29kZSkKICAgICAgYW5kIG5vdCBleGlzdHMoc2VsZWN0IDEgZnJvbSBwdWJsaWMuc3R1ZGlvX2ludm9pY2VzIHdoZXJlIGlkPXZfY29kZSk7CiAgZW5kIGxvb3A7CiAgdl9vcmRlcj1qc29uYl9idWlsZF9vYmplY3QoJ2lkJyx2X2NvZGUsJ3NlcnZpY2VJZCcscF9zZXJ2aWNlX2lkLAogICAgJ3NlcnZpY2UnLHZfc2VydmljZS0+PiduYW1lJywKICAgICdwcmljZScsIGNvYWxlc2NlKG51bGxpZih2X3NlcnZpY2UtPj4nZGlzY291bnQnLCcnKTo6bnVtZXJpYyxudWxsaWYodl9zZXJ2aWNlLT4+J3ByaWNlJywnJyk6Om51bWVyaWMsMCksCiAgICAnbmFtZScsdHJpbShwX25hbWUpLCdzdXJuYW1lJyxsZWZ0KGNvYWxlc2NlKHBfc3VybmFtZSwnJyksMTAwKSwKICAgICdwaG9uZScsdHJpbShwX3Bob25lKSwnYnJpZWYnLHBfYnJpZWYsJ3JlZicscF9yZWYsJ2R1ZScscF9kdWUsCiAgICAnY3JlYXRlZCcsdG9fY2hhcihub3coKSBhdCB0aW1lIHpvbmUgJ0FzaWEvQmFrdScsJ0RELk1NLllZWVkgSEgyNDpNSScpLAogICAgJ2NyZWF0ZWRJU08nLG5vdygpOjp0ZXh0LCdzdGF0dXMnLCdRyZlidWwgZWRpbGRpJywncGF5bWVudCcsJ0fDtnpsyZl5aXInLAogICAgJ3BhaWRBbW91bnQnLDAsJ3ByaW9yaXR5JyxmYWxzZSwnYXJjaGl2ZWQnLGZhbHNlLCdjYW5jZWxsZWQnLGZhbHNlLAogICAgJ2FwcHJvdmVkJyxmYWxzZSwncHJldmlldycsJycsJ25vdGVzJywnJywKICAgICdoaXN0b3J5Jyxqc29uYl9idWlsZF9hcnJheShqc29uYl9idWlsZF9vYmplY3QoJ2F0Jyxub3coKTo6dGV4dCwndGV4dCcsJ1NpZmFyacWfIHlhcmFkxLFsZMSxJykpKTsKICBpbnNlcnQgaW50byBwdWJsaWMuc3R1ZGlvX29yZGVycyhpZCxkYXRhKSB2YWx1ZXModl9jb2RlLHZfb3JkZXIpOwogIHJldHVybiB2X2NvZGU7CmVuZCAkJDsKCmNyZWF0ZSBvciByZXBsYWNlIGZ1bmN0aW9uIHB1YmxpYy5zdHVkaW9fc3VibWl0X2xlYWQoCiBwX25hbWUgdGV4dCxwX3Bob25lIHRleHQscF9icmllZiB0ZXh0LHBfY2F0IHRleHQgZGVmYXVsdCAnJyxwX2J1ZGdldCB0ZXh0IGRlZmF1bHQgJycscF9kdWUgdGV4dCBkZWZhdWx0ICcnCikgcmV0dXJucyB0ZXh0IGxhbmd1YWdlIHBscGdzcWwgc2VjdXJpdHkgZGVmaW5lciBzZXQgc2VhcmNoX3BhdGg9JycgYXMgJCQKZGVjbGFyZSB2X2NvZGUgdGV4dDsKYmVnaW4KICBpZiBsZW5ndGgodHJpbShjb2FsZXNjZShwX25hbWUsJycpKSkgbm90IGJldHdlZW4gMiBhbmQgMTAwCiAgICBvciBsZW5ndGgodHJpbShjb2FsZXNjZShwX3Bob25lLCcnKSkpIG5vdCBiZXR3ZWVuIDcgYW5kIDMwCiAgICBvciBsZW5ndGgodHJpbShjb2FsZXNjZShwX2JyaWVmLCcnKSkpIG5vdCBiZXR3ZWVuIDEwIGFuZCA1MDAwIHRoZW4KICAgIHJhaXNlIGV4Y2VwdGlvbiAnU29yxJ91IG3JmWx1bWF0bGFyxLEgZMO8emfDvG4gZGV5aWwnOwogIGVuZCBpZjsKICBsb29wCiAgICB2X2NvZGU6PSdCUi0nfHx1cHBlcihzdWJzdHIocmVwbGFjZShnZW5fcmFuZG9tX3V1aWQoKTo6dGV4dCwnLScsJycpLDEsMTApKTsKICAgIGV4aXQgd2hlbiBub3QgZXhpc3RzKHNlbGVjdCAxIGZyb20gcHVibGljLnN0dWRpb19sZWFkcyB3aGVyZSBpZD12X2NvZGUpOwogIGVuZCBsb29wOwogIGluc2VydCBpbnRvIHB1YmxpYy5zdHVkaW9fbGVhZHMoaWQsZGF0YSkgdmFsdWVzKHZfY29kZSwKICAgIGpzb25iX2J1aWxkX29iamVjdCgnaWQnLHZfY29kZSwnbmFtZScsdHJpbShwX25hbWUpLCdwaG9uZScsdHJpbShwX3Bob25lKSwnYnJpZWYnLHBfYnJpZWYsCiAgICAgICdjYXQnLGxlZnQoY29hbGVzY2UocF9jYXQsJycpLDEwMCksJ2J1ZGdldCcsbGVmdChjb2FsZXNjZShwX2J1ZGdldCwnJyksMTAwKSwKICAgICAgJ2R1ZScsbGVmdChjb2FsZXNjZShwX2R1ZSwnJyksMTAwKSwnc3RhdHVzJywnWWVuaScsJ25vdGVzJywnJywnY3JlYXRlZCcsbm93KCk6OnRleHQpKTsKICByZXR1cm4gdl9jb2RlOwplbmQgJCQ7CgpjcmVhdGUgb3IgcmVwbGFjZSBmdW5jdGlvbiBwdWJsaWMuc3R1ZGlvX3RyYWNrKHBfY29kZSB0ZXh0KQpyZXR1cm5zIGpzb25iIGxhbmd1YWdlIHBscGdzcWwgc2VjdXJpdHkgZGVmaW5lciBzZXQgc2VhcmNoX3BhdGg9JycgYXMgJCQKZGVjbGFyZSB2X2RhdGEganNvbmI7CmJlZ2luCiAgaWYgbGVuZ3RoKGNvYWxlc2NlKHBfY29kZSwnJykpPjM1IHRoZW4gcmV0dXJuIG51bGw7IGVuZCBpZjsKICBzZWxlY3QgZGF0YSBpbnRvIHZfZGF0YSBmcm9tIHB1YmxpYy5zdHVkaW9fb3JkZXJzIHdoZXJlIGlkPXVwcGVyKHRyaW0ocF9jb2RlKSk7CiAgaWYgdl9kYXRhIGlzIG5vdCBudWxsIHRoZW4KICAgIHJldHVybiBqc29uYl9idWlsZF9vYmplY3QoJ2tpbmQnLCdvcmRlcicsJ2lkJyx2X2RhdGEtPj4naWQnLAogICAgICAnc2VydmljZScsdl9kYXRhLT4+J3NlcnZpY2UnLCdzdGF0dXMnLHZfZGF0YS0+PidzdGF0dXMnLAogICAgICAnY2FuY2VsbGVkJyx2X2RhdGEtPidjYW5jZWxsZWQnLCdhcHByb3ZlZCcsdl9kYXRhLT4nYXBwcm92ZWQnLAogICAgICAnY3JlYXRlZCcsdl9kYXRhLT4+J2NyZWF0ZWQnKTsKICBlbmQgaWY7CiAgc2VsZWN0IGRhdGEgaW50byB2X2RhdGEgZnJvbSBwdWJsaWMuc3R1ZGlvX2ludm9pY2VzIHdoZXJlIGlkPXVwcGVyKHRyaW0ocF9jb2RlKSk7CiAgaWYgdl9kYXRhIGlzIG5vdCBudWxsIHRoZW4KICAgIHJldHVybiBqc29uYl9idWlsZF9vYmplY3QoJ2tpbmQnLCdpbnZvaWNlJywnY29kZScsdl9kYXRhLT4+J2NvZGUnLAogICAgICAncHJvZHVjdCcsdl9kYXRhLT4+J3Byb2R1Y3QnLCdkYXRlJyx2X2RhdGEtPj4nZGF0ZScpOwogIGVuZCBpZjsKICByZXR1cm4gbnVsbDsKZW5kICQkOwoKcmV2b2tlIGFsbCBvbiBmdW5jdGlvbiBwdWJsaWMuc3R1ZGlvX3N1Ym1pdF9vcmRlcih0ZXh0LHRleHQsdGV4dCx0ZXh0LHRleHQsdGV4dCx0ZXh0KSBmcm9tIHB1YmxpYywgYW5vbiwgYXV0aGVudGljYXRlZDsKcmV2b2tlIGFsbCBvbiBmdW5jdGlvbiBwdWJsaWMuc3R1ZGlvX3N1Ym1pdF9sZWFkKHRleHQsdGV4dCx0ZXh0LHRleHQsdGV4dCx0ZXh0KSBmcm9tIHB1YmxpYywgYW5vbiwgYXV0aGVudGljYXRlZDsKcmV2b2tlIGFsbCBvbiBmdW5jdGlvbiBwdWJsaWMuc3R1ZGlvX3RyYWNrKHRleHQpIGZyb20gcHVibGljLCBhbm9uLCBhdXRoZW50aWNhdGVkOwpncmFudCBleGVjdXRlIG9uIGZ1bmN0aW9uIHB1YmxpYy5zdHVkaW9fc3VibWl0X29yZGVyKHRleHQsdGV4dCx0ZXh0LHRleHQsdGV4dCx0ZXh0LHRleHQpIHRvIGFub24sIGF1dGhlbnRpY2F0ZWQ7CmdyYW50IGV4ZWN1dGUgb24gZnVuY3Rpb24gcHVibGljLnN0dWRpb19zdWJtaXRfbGVhZCh0ZXh0LHRleHQsdGV4dCx0ZXh0LHRleHQsdGV4dCkgdG8gYW5vbiwgYXV0aGVudGljYXRlZDsKZ3JhbnQgZXhlY3V0ZSBvbiBmdW5jdGlvbiBwdWJsaWMuc3R1ZGlvX3RyYWNrKHRleHQpIHRvIGFub24sIGF1dGhlbnRpY2F0ZWQ7CgotLSBQVUJMSUMgYXNzZXRzOiBvbmx5IGF1dGhlbnRpY2F0ZWQgZGVzaWduYXRlZCBhZG1pbiBjYW4gdXBsb2FkLgppbnNlcnQgaW50byBzdG9yYWdlLmJ1Y2tldHMoaWQsbmFtZSxwdWJsaWMsZmlsZV9zaXplX2xpbWl0LGFsbG93ZWRfbWltZV90eXBlcykKdmFsdWVzICgnc3R1ZGlvLW1lZGlhJywnc3R1ZGlvLW1lZGlhJyx0cnVlLDEwNDg1NzYwLGFycmF5WydpbWFnZS9qcGVnJywnaW1hZ2UvcG5nJywnaW1hZ2Uvd2VicCcsJ2ltYWdlL2dpZiddKQpvbiBjb25mbGljdCAoaWQpIGRvIG5vdGhpbmc7CmNyZWF0ZSBwb2xpY3kgIkFueW9uZSBjYW4gdmlldyBzdHVkaW8gbWVkaWEiIG9uIHN0b3JhZ2Uub2JqZWN0cyBmb3Igc2VsZWN0IHRvIGFub24sIGF1dGhlbnRpY2F0ZWQgdXNpbmcgKGJ1Y2tldF9pZD0nc3R1ZGlvLW1lZGlhJyk7CmNyZWF0ZSBwb2xpY3kgIkFkbWluIGNhbiB1cGxvYWQgc3R1ZGlvIG1lZGlhIiBvbiBzdG9yYWdlLm9iamVjdHMgZm9yIGluc2VydCB0byBhdXRoZW50aWNhdGVkCiAgd2l0aCBjaGVjayAoYnVja2V0X2lkPSdzdHVkaW8tbWVkaWEnIGFuZCBwdWJsaWMuc3R1ZGlvX2lzX2FkbWluKCkpOwpjcmVhdGUgcG9saWN5ICJBZG1pbiBjYW4gdXBkYXRlIHN0dWRpbyBtZWRpYSIgb24gc3RvcmFnZS5vYmplY3RzIGZvciB1cGRhdGUgdG8gYXV0aGVudGljYXRlZAogIHVzaW5nIChidWNrZXRfaWQ9J3N0dWRpby1tZWRpYScgYW5kIHB1YmxpYy5zdHVkaW9faXNfYWRtaW4oKSkgd2l0aCBjaGVjayAoYnVja2V0X2lkPSdzdHVkaW8tbWVkaWEnIGFuZCBwdWJsaWMuc3R1ZGlvX2lzX2FkbWluKCkpOwpjcmVhdGUgcG9saWN5ICJBZG1pbiBjYW4gZGVsZXRlIHN0dWRpbyBtZWRpYSIgb24gc3RvcmFnZS5vYmplY3RzIGZvciBkZWxldGUgdG8gYXV0aGVudGljYXRlZAogIHVzaW5nIChidWNrZXRfaWQ9J3N0dWRpby1tZWRpYScgYW5kIHB1YmxpYy5zdHVkaW9faXNfYWRtaW4oKSk7CgotLSBJTVBPUlRBTlQ6IE9uY2UgeW91IGNyZWF0ZWQgYW4gQXV0aCBhY2NvdW50LCBydW4gbWFudWFsbHkgaW4gU1FMIGVkaXRvcjoKLS0gaW5zZXJ0IGludG8gcHVibGljLnN0dWRpb19hZG1pbnModXNlcl9pZCkgdmFsdWVzICgnWU9VUi1BVVRILVVTRVItVVVJRCcpOwotLSBOZXZlciBwdXQgc2VydmljZV9yb2xlIG9yIHNlY3JldCBBUEkga2V5IGludG8gYnJvd3NlciBIVE1MLgo=";
+function naShowSetup(){const d=document.getElementById('naSetupOverlay');d.classList.add('show');document.getElementById('naSetupUrl').value=/^https:\/\//.test(window.NA_SUPABASE_CONFIG.url)?window.NA_SUPABASE_CONFIG.url:'';document.getElementById('naSetupKey').value=!window.NA_SUPABASE_CONFIG.publishableKey.startsWith('PASTE_')?window.NA_SUPABASE_CONFIG.publishableKey:'';}
+function naCloseSetup(){document.getElementById('naSetupOverlay').classList.remove('show')}
+function naDownloadFile(name,content,type){const b=new Blob([content],{type:type||'text/plain;charset=utf-8'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),3000)}
+function naDownloadSql(){const b=atob(NA_SQL_B64);const bytes=Uint8Array.from(b,c=>c.charCodeAt(0));naDownloadFile('supabase_schema.sql',new TextDecoder().decode(bytes),'text/sql;charset=utf-8')}
+function naPublicConfig(){const u=document.getElementById('naSetupUrl').value.trim(),k=document.getElementById('naSetupKey').value.trim();if(!/^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/i.test(u)){alert('Supabase Project URL düzgün daxil edilməyib');return null}if(!k||k.length<20||/^sb_secret_|^eyJ.*service_role/i.test(k)){alert('Yalnız publishable/anon açarı daxil edin. Gizli açarları istifadə etməyin.');return null}return {url:u.replace(/\/$/,''),publishableKey:k}}
+function naDownloadConfigured(){const c=naPublicConfig();if(!c)return;let doc='<!doctype html>\n'+document.documentElement.outerHTML;const expression=/\/\* STUDIO_PUBLIC_CONFIG_BEGIN \*\/[\s\S]*?\/\* STUDIO_PUBLIC_CONFIG_END \*\//;const replacement='/* STUDIO_PUBLIC_CONFIG_BEGIN */\nwindow.NA_SUPABASE_CONFIG='+JSON.stringify(c).replace(/</g,'\\u003c')+';\n/* STUDIO_PUBLIC_CONFIG_END */';if(!expression.test(doc)){alert('HTML konfiqurasiyası tapılmadı');return}doc=doc.replace(expression,()=>replacement);naDownloadFile('index.html',doc,'text/html;charset=utf-8');document.getElementById('naSetupNotice').textContent='Konfiqurasiya olunmuş index.html yükləndi. Onu GitHub repository-nin kök qovluğundakı index.html ilə əvəz edin. Supabase SQL və admin icazələri də tətbiq olunmalıdır.'}
+function naApplyLocal(){const c=naPublicConfig();if(!c)return;sessionStorage.setItem('na_temp_cfg',JSON.stringify(c));window.location.reload()}
+try{const c=JSON.parse(sessionStorage.getItem('na_temp_cfg')||'null');if(c&&window.NA_SUPABASE_CONFIG.url.startsWith('PASTE_'))window.NA_SUPABASE_CONFIG=c}catch(e){}
+</script>
+
+<script>
+/* Nihad Abbasov Studio: Supabase production bridge for the original V6 UI.
+ * Private tables are protected by Supabase RLS. No service_role in browser.
+ */
+(()=>{
+'use strict';
+const cfg=window.NA_SUPABASE_CONFIG||{};
+const configured=/^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/i.test(cfg.url||'') &&
+  cfg.publishableKey && !cfg.publishableKey.startsWith('PASTE_');
+const banner=document.createElement('div');
+banner.id='na-connection-banner';
+banner.style.cssText='position:fixed;z-index:9999;left:12px;right:12px;bottom:10px;max-width:680px;margin:auto;border-radius:13px;padding:11px 17px;font:600 13px system-ui;box-shadow:0 7px 25px #0003;display:none;text-align:center';
+document.body.appendChild(banner);
+function notify(text,kind='warn'){
+  banner.textContent=text;
+  banner.style.background=kind==='ok'?'#e7f7ed':kind==='error'?'#ffeded':'#fff3d0';
+  banner.style.color=kind==='ok'?'#14603d':kind==='error'?'#a32424':'#654b00';
+  if(kind==='error') {banner.style.display='block';setTimeout(()=>{banner.style.display='none'},5500)}
+}
+if(!configured || !window.supabase?.createClient){
+  // Public, honest launch mode until backend is configured: no fabricated order IDs.
+  const waNumber=()=>String(db?.config?.whatsapp||'994993703892').replace(/\D/g,'');
+  const waMessage=message=>'https://wa.me/'+waNumber()+'?text='+encodeURIComponent(message);
+  const waSend=(message)=>{
+    const url=waMessage(message);
+    const link=document.createElement('a');link.href=url;link.target='_blank';link.rel='noopener noreferrer';
+    link.click();
+  };
+  window.orderForm=(id)=>{
+    const s=db.services.find(x=>x.id===id);
+    if(!s)return notify('Xidmət tapılmadı.','error');
+    openModal('Sifariş müraciəti — '+s.name,`<div class="notice">Onlayn məlumat bazası hələ aktiv deyil. Sifarişinizi WhatsApp vasitəsilə birbaşa göndərə bilərsiniz. İzləmə ID-si yalnız server qoşulandan sonra veriləcək.</div><form id="naDirectOrder"><div class="two">${filed('Adınız *','oName','','text','required')}${filed('Soyad (istəyə bağlı)','oSurname')}${filed('Telefon / WhatsApp *','oPhone','','tel','required')}</div>${area('Ölçü, rəng, çap, SMM və digər istəklər','oBrief')}<button class="btn" type="submit" style="width:100%">WhatsApp ilə sifariş göndər ↗</button></form>`);
+    $('naDirectOrder').onsubmit=e=>{
+      e.preventDefault(); const name=bval('oName').trim(),phone=bval('oPhone').trim();
+      if(!name||!phone)return msg('Ad və telefon vacibdir.');
+      waSend('Salam! Nihad Abbasov Creative Studio saytından sifariş müraciəti.\nXidmət: '+s.name+'\nAd: '+name+' '+bval('oSurname')+'\nTelefon: '+phone+'\nTələblər: '+bval('oBrief'));
+      closeModal();
+    };
+  };
+  window.submitQuote=e=>{
+    e.preventDefault();const name=bval('qName').trim(),phone=bval('qPhone').trim(),brief=bval('qBrief').trim();
+    if(!name||!phone||!brief)return msg('Ad, telefon və layihə təsviri tələb olunur.');
+    waSend('Salam! Saytdan qiymət təklifi sorğusu.\nAd: '+name+'\nTelefon: '+phone+'\nKateqoriya: '+bval('qCategory')+'\nLayihə: '+brief+'\nBüdcə: '+bval('qBudget')+'\nTarix: '+bval('qDeadline'));
+  };
+  window.openTracking=()=>openModal('Sifariş izləmə',`<div class="notice">Sifarişlərin kodla izlənməsi Supabase aktivləşdirildikdən sonra işləyəcək. Hazırda sifariş vəziyyətini WhatsApp ilə öyrənə bilərsiniz.</div><a class="btn" target="_blank" rel="noopener" href="${waMessage('Salam, sifarişimin vəziyyətini öyrənmək istəyirəm.')}">WhatsApp-da soruş ↗</a>`);
+  window.checkTrack=()=>notify('Sifariş izləmə bazası hələ qoşulmayıb.','error');
+  window.openAdmin=()=>window.naShowSetup();
+  banner.style.display='none';
+  return;
+}
+const sb=window.supabase.createClient(cfg.url.replace(/\/$/,''),cfg.publishableKey,{
+  auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}
+});
+let isAdmin=false,publicReady=false,saveTimer=null,saving=false,needsSave=false;
+const PUBLIC_FIELDS=['title','subtitle','heroTitle','heroSubtitle','heroImage','videoUrl','introSeconds',
+  'phone','whatsapp','email','location','hours','instagram','behance','introEnabled','faqIntro',
+  'seoTitle','seoDescription','seoImage','aiName','aiWelcome','aiEndpoint'];
+function publicPayload(){
+  const config={};for(const key of PUBLIC_FIELDS)if(db.config[key]!==undefined)config[key]=db.config[key];
+  return {config,categories:db.categories,services:db.services,portfolio:db.portfolio,
+    certificates:db.certificates,reviews:db.reviews,faqs:db.faqs};
+}
+function privatePayload(){
+  return {tasks:db.tasks,logs:db.logs,configPrivate:{},_version:1};
+}
+function rowsPayload(items){return (items||[]).map(x=>({id:x.id||x.code,data:x}));}
+async function assertOk(promise,label){const r=await promise;if(r.error)throw Error(label+': '+r.error.message);return r.data;}
+async function replaceRows(table, items){
+  const values=rowsPayload(items);
+  if(values.length)await assertOk(sb.from(table).upsert(values,{onConflict:'id'}),table+' upsert');
+  const existing=await assertOk(sb.from(table).select('id'),table+' select');
+  const wanted=new Set(values.map(x=>x.id));
+  const removed=(existing||[]).filter(x=>!wanted.has(x.id)).map(x=>x.id);
+  if(removed.length)await assertOk(sb.from(table).delete().in('id',removed),table+' delete');
+}
+async function persist(){
+  if(!isAdmin)return;
+  if(saving){needsSave=true;return}
+  saving=true;
+  try{
+    await assertOk(sb.from('studio_public').upsert({id:1,data:publicPayload(),updated_at:new Date().toISOString()}),'public catalog');
+    await assertOk(sb.from('studio_private').upsert({id:1,data:privatePayload(),updated_at:new Date().toISOString()}),'private state');
+    await replaceRows('studio_orders',db.orders);
+    await replaceRows('studio_invoices',db.invoices);
+    await replaceRows('studio_leads',db.leads);
+  }catch(err){console.error('[NA Studio] Supabase sync failed',err);notify('Server yaddaşına yazma xətası: '+err.message,'error')}
+  finally{saving=false;if(needsSave){needsSave=false;queueSave()}}
+}
+function queueSave(){if(!isAdmin)return;clearTimeout(saveTimer);saveTimer=setTimeout(persist,450)}
+// Local storage no longer defines the authoritative public/admin database.
+save=function(){queueSave()};
+async function loadPublic(){
+  const data=await assertOk(sb.from('studio_public').select('data').eq('id',1).maybeSingle(),'catalog');
+  if(data?.data){
+    const p=data.data;
+    for(const k of ['categories','services','portfolio','certificates','reviews','faqs'])if(Array.isArray(p[k]))db[k]=p[k];
+    Object.assign(db.config,p.config||{});
+    publicReady=true;
+  }
+  db.orders=[];db.invoices=[];db.leads=[];db.logs=[];db.tasks=[];
+  // The legacy local demo admin password must never be used in production.
+  delete db.config.adminPass;
+  renderPublic();if(typeof applySeo==='function')applySeo();
+}
+async function loadAdmin(){
+  await loadPublic();
+  const [pr,or,ir,lr]=await Promise.all([
+    assertOk(sb.from('studio_private').select('data').eq('id',1).maybeSingle(),'private'),
+    assertOk(sb.from('studio_orders').select('data').order('created_at',{ascending:false}).limit(1000),'orders'),
+    assertOk(sb.from('studio_invoices').select('data').order('created_at',{ascending:false}).limit(1000),'invoices'),
+    assertOk(sb.from('studio_leads').select('data').order('created_at',{ascending:false}).limit(1000),'leads')
+  ]);
+  db.tasks=pr?.data?.tasks||[];db.logs=pr?.data?.logs||[];
+  db.orders=(or||[]).map(x=>x.data);db.invoices=(ir||[]).map(x=>x.data);
+  db.leads=(lr||[]).map(x=>x.data);
+  if(!publicReady){
+    // First admin login publishes the V6 seed content; real changes thereafter are stored remotely.
+    publicReady=true;await persist();
+  }
+  renderPublic();renderAdmin();
+}
+async function openRealAdmin(){
+  try{
+    const {data:{session}}=await sb.auth.getSession();
+    if(session){
+      const admin=await assertOk(sb.rpc('studio_is_admin'),'admin role');
+      if(admin){isAdmin=true;adminOn=true;await loadAdmin();$('admin').classList.add('show');renderAdmin();notify('Supabase Baş Admin hesabına qoşulub.','ok');setTimeout(()=>banner.style.display='none',4000);return}
+    }
+  }catch(err){console.error(err)}
+  openModal('Təhlükəsiz Baş Admin girişi',`<div class="notice">Supabase Auth ilə giriş. Köhnə demo şifrəsi ləğv edilib.</div>
+    <form id="supabaseAdminLogin">
+    ${filed('Admin e-poçtu','naLoginEmail','','email','required')}
+    ${filed('Şifrə','naLoginPassword','','password','required')}
+    <button class="btn" style="width:100%">Giriş et</button></form>`);
+  $('supabaseAdminLogin').onsubmit=async e=>{
+    e.preventDefault();const button=e.target.querySelector('button');button.disabled=true;
+    try{
+      await assertOk(sb.auth.signInWithPassword({email:bval('naLoginEmail'),password:bval('naLoginPassword')}),'login');
+      const valid=await assertOk(sb.rpc('studio_is_admin'),'role');
+      if(!valid){await sb.auth.signOut();throw Error('Bu hesab Baş Admin kimi icazələndirilməyib')}
+      isAdmin=true;adminOn=true;closeModal();await loadAdmin();$('admin').classList.add('show');renderAdmin();
+      notify('Baş Admin təhlükəsiz Supabase hesabı ilə aktivdir.','ok');setTimeout(()=>banner.style.display='none',4000);
+    }catch(err){notify(err.message,'error')}finally{button.disabled=false}
+  };
+}
+openAdmin=openRealAdmin;
+adminSecurity=function(){return `<div class="admin-card"><h3>Supabase Auth — təhlükəsiz giriş</h3>
+  <p>Baş Admin icazəsi Supabase studio_admins cədvəlindəki Auth istifadəçi ID-sinə əsaslanır. Köhnə demo şifrəsi istifadə olunmur.</p>
+  <button class="btn" onclick="naSignOut()">Hesabdan çıx</button></div>`};
+window.naSignOut=async()=>{clearTimeout(saveTimer);await persist();await sb.auth.signOut();isAdmin=false;adminOn=false;closeAdmin();await loadPublic();notify('Hesabdan çıxıldı.','ok')};
+// Prevent accidental wiping of production data through the old "Reset demo" button.
+resetDemo=function(){notify('Canlı bazada demo sıfırlama funksiyası söndürülüb.','error')};
+// Save existing local V6 content ONLY after authenticated admin approval.
+window.naImportLocal=async()=>{
+  if(!isAdmin)return notify('Əvvəlcə Baş Admin olaraq daxil olun.','error');
+  const raw=localStorage.getItem('na_creative_studio_v1');if(!raw)return notify('Köhnə lokal məlumat tapılmadı.');
+  if(!confirm('Köhnə brauzer məlumatlarını Supabase-ə köçürmək istəyirsiniz? Hazırkı server məlumatlarını əvəz edəcək.'))return;
+  const old=JSON.parse(raw);if(!old.services||!old.config)return notify('Köhnə məlumat faylı uyğun deyil.','error');
+  Object.assign(db,{...old,config:{...db.config,...old.config}});delete db.config.adminPass;
+  needsSave=true;await persist();renderPublic();renderAdmin();notify('Yerli məlumatların serverə köçürülməsi başladıldı.','ok')
+};
+// Add a visible migration option to backup admin tab.
+const oldAdminBackup=adminBackup;
+adminBackup=function(){return `<div class="admin-card"><h3>Supabase-ə köhnə V6 məlumatlarını köçür</h3>
+  <p>Yalnız bu brauzerdə əvvəl saxlanmış məlumatlar üçündür. Əvvəl JSON backup alın.</p>
+  <button class="btn" onclick="naImportLocal()">Köhnə lokal məlumatları import et</button></div>`+oldAdminBackup()};
+const oldOrderForm=orderForm;
+orderForm=function(id){
+  if(!publicReady)return notify('Xidmət kataloqu hələ dərc edilməyib. Baş Admin ilkin kataloqu aktivləşdirməlidir.','error');
+  oldOrderForm(id);
+  const form=$('orderForm');if(!form)return;
+  form.onsubmit=async e=>{
+    e.preventDefault();let button=form.querySelector('button[type="submit"],button');
+    const name=bval('oName'),phone=bval('oPhone');if(!name||!phone)return msg('Ad və telefon tələb olunur.');
+    button.disabled=true;
+    try{
+      const code=await assertOk(sb.rpc('studio_submit_order',{
+        p_service_id:id,p_name:name,p_surname:bval('oSurname'),p_phone:phone,
+        p_brief:bval('oBrief'),p_ref:bval('oRef'),p_due:bval('oDue')
+      }),'sifariş');
+      const service=db.services.find(x=>x.id===id);
+      const order={id:code,service:service.name,name,phone,price:Number(service.discount||service.price)};
+      orderSuccess(order);
+      notify('Sifariş serverdə saxlanıldı. Kod: '+code,'ok');setTimeout(()=>banner.style.display='none',4500);
+    }catch(err){notify('Sifariş qəbul edilmədi: '+err.message,'error')}finally{button.disabled=false}
+  };
+};
+submitQuote=async function(e){
+  e.preventDefault();if(!publicReady)return notify('Sayt hələ serverdə aktivləşdirilməyib.','error');
+  const name=bval('qName'),phone=bval('qPhone'),brief=bval('qBrief');
+  if(!name||!phone||!brief)return msg('Ad, telefon və layihə təsviri vacibdir');
+  try{
+    const code=await assertOk(sb.rpc('studio_submit_lead',{
+      p_name:name,p_phone:phone,p_brief:brief,p_cat:bval('qCategory'),
+      p_budget:bval('qBudget'),p_due:bval('qDeadline')
+    }),'təklif sorğusu');
+    $('publicQuoteForm')?.reset();
+    openModal('Sorğunuz qeydə alındı',`<div class="alert"><h3>${esc(code)}</h3><p>Sorğu Supabase serverində saxlanıldı. Kodunuzu qeyd edin.</p></div>`);
+  }catch(err){notify('Sorğu göndərilmədi: '+err.message,'error')}
+};
+checkTrack=async function(){
+  const id=bval('trackingInput').trim().toUpperCase(),box=$('trackingResult');if(!id)return;
+  box.textContent='Sifariş serverdə yoxlanılır…';
+  try{
+    const obj=await assertOk(sb.rpc('studio_track',{p_code:id}),'izləmə');
+    if(!obj){box.textContent='Bu kod üzrə sifariş/qaimə tapılmadı.';return}
+    if(obj.kind==='invoice'){
+      box.innerHTML=`<div class="admin-card"><b>Qaimə № ${esc(obj.code)}</b><p>${esc(obj.product)}</p><p>Tarix: ${esc(obj.date)}</p></div>`;return;
+    }
+    const ix=STAGES.indexOf(obj.status);
+    box.innerHTML=`<div class="admin-card" style="margin-top:20px"><h3>${esc(obj.id)}</h3>
+      <p>${esc(obj.service)}</p><p><span class="tag green">${obj.cancelled?'Ləğv edildi':esc(obj.status)}</span></p>
+      <div class="timeline">${STAGES.map((t,i)=>`<div class="milestone ${i<=ix&&!obj.cancelled?'done':''}"><i>${i<=ix?'✓':i+1}</i>${esc(t)}</div>`).join('')}</div></div>`;
+  }catch(err){box.textContent='İzləmə sorğusu alınmadı: '+err.message}
+};
+// Admin image upload: file goes to Supabase Storage, not local base64.
+loadImageFile=async function(input,target){
+  const file=input.files?.[0];if(!file)return;
+  if(!isAdmin)return notify('Şəkil üçün Baş Admin girişi tələb olunur.','error');
+  if(file.size>10*1024*1024)return msg('Şəkil 10 MB-dan kiçik olmalıdır');
+  if(!['image/png','image/jpeg','image/webp','image/gif'].includes(file.type))return msg('Yalnız şəkil formatları qəbul olunur');
+  const path=crypto.randomUUID()+'-'+file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+  try{
+    await assertOk(sb.storage.from('studio-media').upload(path,file,{upsert:false,contentType:file.type}),'media upload');
+    const {data:{publicUrl}}=sb.storage.from('studio-media').getPublicUrl(path);
+    $(target).value=publicUrl;
+    if($('servicePreview'))$('servicePreview').src=publicUrl;
+    if($('galleryPreview'))$('galleryPreview').src=publicUrl;
+    msg('Şəkil Supabase Storage-a yükləndi. Yadda saxla düyməsini basın.');
+  }catch(err){notify(err.message,'error')}
+};
+// Refresh admin when tab becomes visible, allowing changes from another device.
+document.addEventListener('visibilitychange',async()=>{
+  if(!document.hidden && isAdmin && !saving){
+    try{await loadAdmin()}catch(err){console.error(err)}
+  }
+});
+(async()=>{
+  try{await loadPublic();if(location.hash.startsWith('#track=')){openTracking(decodeURIComponent(location.hash.slice(7)))}notify('Sayt Supabase məlumat bazasına qoşuldu.','ok');setTimeout(()=>banner.style.display='none',3000)}
+  catch(err){console.error(err);notify('Supabase bazası tapılmadı: schema.sql icra edin. '+err.message,'error')}
+})();
+})();
+
+</script>
 </body></html>
