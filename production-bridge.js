@@ -17,11 +17,39 @@ function notify(text,kind='warn'){
   banner.style.display='block';
 }
 if(!configured || !window.supabase?.createClient){
-  notify('Sayt hələ Supabase-ə qoşulmayıb. config.js faylını doldurun; sifarişlər qəbul edilmir.');
-  // Prevent confusing local demo orders while credentials are missing.
-  window.orderForm=()=>notify('Əvvəlcə config.js daxilində Supabase bağlantısını qurun.','error');
-  window.openAdmin=()=>notify('Əvvəlcə Supabase bağlantısını qurun.','error');
-  window.submitQuote=e=>{e?.preventDefault?.();notify('Əvvəlcə Supabase bağlantısını qurun.','error')};
+  // Public, honest launch mode until backend is configured: no fabricated order IDs.
+  notify('Sayt açıqdır. Hazırda sifariş və qiymət sorğuları WhatsApp vasitəsilə qəbul edilir.');
+  const waNumber=()=>String(db?.config?.whatsapp||'994993703892').replace(/\D/g,'');
+  const waMessage=message=>'https://wa.me/'+waNumber()+'?text='+encodeURIComponent(message);
+  const waSend=(message)=>{
+    const url=waMessage(message);
+    const link=document.createElement('a');link.href=url;link.target='_blank';link.rel='noopener noreferrer';
+    link.click();
+  };
+  window.orderForm=(id)=>{
+    const s=db.services.find(x=>x.id===id);
+    if(!s)return notify('Xidmət tapılmadı.','error');
+    openModal('Sifariş müraciəti — '+s.name,`<div class="notice">Onlayn məlumat bazası hələ aktiv deyil. Sifarişinizi WhatsApp vasitəsilə birbaşa göndərə bilərsiniz. İzləmə ID-si yalnız server qoşulandan sonra veriləcək.</div><form id="naDirectOrder"><div class="two">${filed('Adınız *','oName','','text','required')}${filed('Soyad (istəyə bağlı)','oSurname')}${filed('Telefon / WhatsApp *','oPhone','','tel','required')}</div>${area('Ölçü, rəng, çap, SMM və digər istəklər','oBrief')}<button class="btn" type="submit" style="width:100%">WhatsApp ilə sifariş göndər ↗</button></form>`);
+    $('naDirectOrder').onsubmit=e=>{
+      e.preventDefault(); const name=bval('oName').trim(),phone=bval('oPhone').trim();
+      if(!name||!phone)return msg('Ad və telefon vacibdir.');
+      waSend('Salam! Nihad Abbasov Creative Studio saytından sifariş müraciəti.\nXidmət: '+s.name+'\nAd: '+name+' '+bval('oSurname')+'\nTelefon: '+phone+'\nTələblər: '+bval('oBrief'));
+      closeModal();
+    };
+  };
+  window.submitQuote=e=>{
+    e.preventDefault();const name=bval('qName').trim(),phone=bval('qPhone').trim(),brief=bval('qBrief').trim();
+    if(!name||!phone||!brief)return msg('Ad, telefon və layihə təsviri tələb olunur.');
+    waSend('Salam! Saytdan qiymət təklifi sorğusu.\nAd: '+name+'\nTelefon: '+phone+'\nKateqoriya: '+bval('qCategory')+'\nLayihə: '+brief+'\nBüdcə: '+bval('qBudget')+'\nTarix: '+bval('qDeadline'));
+  };
+  window.openTracking=()=>openModal('Sifariş izləmə',`<div class="notice">Sifarişlərin kodla izlənməsi Supabase aktivləşdirildikdən sonra işləyəcək. Hazırda sifariş vəziyyətini WhatsApp ilə öyrənə bilərsiniz.</div><a class="btn" target="_blank" rel="noopener" href="${waMessage('Salam, sifarişimin vəziyyətini öyrənmək istəyirəm.')}">WhatsApp-da soruş ↗</a>`);
+  window.checkTrack=()=>notify('Sifariş izləmə bazası hələ qoşulmayıb.','error');
+  window.openAdmin=()=>openModal('Baş Admin aktivləşdirməsi',`<div class="notice">Təhlükəsizlik üçün demo şifrəsi internetdə söndürülüb. Baş Admin kabinetini işə salmaq üçün Supabase SQL sxemini tətbiq edib config.js bağlantısını əlavə edin.</div><p>Quraşdırma addımları paketdəki <b>QURASDIRMA_AZ.md</b> faylındadır.</p>`);
+  const setupLabel=document.createElement('aside');setupLabel.id='na-launch-mode';
+  setupLabel.setAttribute('aria-label','Sifariş qəbulu vəziyyəti');
+  setupLabel.style.cssText='position:fixed;bottom:12px;left:12px;z-index:81;background:#fff;color:#126844;border:1px solid #b1d7bd;padding:9px 13px;border-radius:14px;font:600 12px system-ui;box-shadow:0 8px 26px #11332212;max-width:215px';
+  setupLabel.innerHTML='● Sifarişlər WhatsApp ilə qəbul edilir';document.body.appendChild(setupLabel);
+  setTimeout(()=>{banner.style.display='none'},8500);
   return;
 }
 const sb=window.supabase.createClient(cfg.url.replace(/\/$/,''),cfg.publishableKey,{

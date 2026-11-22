@@ -1,0 +1,25 @@
+NIHAD ABBASOV CREATIVE STUDIO
+
+İSTƏNİLƏN CANLI URL: https://nihadabbasovcreativestudio.lovable.app/
+
+Bu ZIP-in içində HTML sayt və ayrıca Supabase bağlantı kodu var.
+Amma ZIP-in yüklənməsi Lovable Cloud-a saytı dərc etmir.
+Sizin Lovable layihənizin özü React/TypeScript ilə başlanıb və ayrıca verilənlər bazası var.
+Bu HTML fayllarını mövcud Lovable layihəsinin src/ içindəki fayllarla kor-koranə əvəz ETMƏYİN.
+
+BU GÜN İSTİFADƏ YOLLARI:
+1) Hazır HTML saytını GitHub Pages / statik hostingdə yayımlamaq olar.
+2) Lovable.app ünvanını aktivləşdirmək üçün MÖVCUD Lovable layihəsinin mənbə kodu lazımdır:
+   Project > GitHub (sinxronlaşdırılmış repo) və ya layihənin source ZIP-i.
+3) Onun kodunda build səhvi düzəldilməli, səhifələr tamamlanmalı, sonra Lovable-da Publish/Update edilməlidir.
+4) HTML üçün ayrıca Supabase bağlantısı istənilirsə config.js daxilində Project URL və yalnız publishable/anon key yazılmalıdır;
+   Supabase SQL sxemini yalnız onun üçün nəzərdə tutulan ayrıca layihədə işlədin.
+   Lovable Cloud-un artıq yaratdığı bazaya bu SQL-i icazəsiz tətbiq ETMƏYİN.
+
+ƏSAS FƏRQ:
+- Hazır HTML interfeysi və fayllar: BU ZIP-DƏ VAR.
+- Lovable hostinqində canlı deploy: HESABINIZDA EDİLMƏYİB.
+- Mövcud Lovable layihəsində tam işlək Super Admin, sifariş və AURELIA:
+  həmin React layihəsinə inteqrasiya və canlı test tələb olunur.
+
+Gizli API açarları və şifrələri public GitHub repo-ya yükləməyin.
